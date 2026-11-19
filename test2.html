@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Student Registration</title>
+  <style>
+    :root {
+      --bg: #f3f5f9;
+      --card: #ffffff;
+      --text: #1b2430;
+      --muted: #5b6675;
+      --border: #cfd6e0;
+      --accent: #1f4fd8;
+      --accent-disabled: #8d9ab5;
+      --ok: #157a3c;
+      --err: #b3261e;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #12161d;
+        --card: #1b212b;
+        --text: #e8ecf2;
+        --muted: #9aa5b5;
+        --border: #3a4454;
+        --accent: #6c93ff;
+        --accent-disabled: #4a5468;
+        --ok: #5fd08a;
+        --err: #ff8a80;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: var(--card);
+      padding: 28px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+    h1 { margin: 0 0 6px; font-size: 1.5rem; }
+    .sub { margin: 0 0 20px; color: var(--muted); font-size: .95rem; }
+    label { display: block; margin: 16px 0 6px; font-weight: 600; }
+    input {
+      width: 100%;
+      padding: 11px 12px;
+      font-size: 1rem;
+      color: var(--text);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    input:focus-visible, button:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 2px;
+    }
+    button {
+      width: 100%;
+      margin-top: 24px;
+      padding: 12px;
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #fff;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:disabled { background: var(--accent-disabled); cursor: not-allowed; }
+    #msg { min-height: 1.4em; margin-top: 16px; text-align: center; font-weight: 600; }
+    .hp { position: absolute; left: -9999px; }
+    .note { margin: 18px 0 0; font-size: .8rem; color: var(--muted); text-align: center; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Student Registration</h1>
+    <p class="sub">Enter your details below and press Submit.</p>
+
+    <form id="form" novalidate>
+      <label for="name">Full name</label>
+      <input type="text" id="name" name="name" autocomplete="name" required>
+
+      <label for="phone">Phone number</label>
+      <input type="tel" id="phone" name="phone" autocomplete="tel" required>
+
+      <label for="email">Email address</label>
+      <input type="email" id="email" name="email" autocomplete="email" required>
+
+      <!-- Honeypot field: real users never see it, bots often fill it -->
+      <input type="text" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+
+      <button type="submit" id="btn">Submit</button>
+    </form>
+
+    <div id="msg" role="status" aria-live="polite"></div>
+    <p class="note">Your information is used only for course registration purposes.</p>
+  </main>
+
+  <script>
+    // Paste your Web3Forms Access Key here (get it free at web3forms.com)
+    const ACCESS_KEY = "7f0a06f3-75a4-44df-bd5e-0708f2807ad4";
+
+    const form = document.getElementById("form");
+    const btn  = document.getElementById("btn");
+    const msg  = document.getElementById("msg");
+
+    function showMessage(text, color) {
+      msg.style.color = color;
+      msg.textContent = text;
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const name  = form.name.value.trim();
+      const phone = form.phone.value.trim();
+      const email = form.email.value.trim();
+
+      // Basic validation
+      if (!name || !phone || !email) {
+        showMessage("Please fill in all fields.", "var(--err)");
+        return;
+      }
+      if (!/^\S+@\S+\.\S+$/.test(email)) {
+        showMessage("Please enter a valid email address.", "var(--err)");
+        return;
+      }
+      if (!/^[+]?[\d\s\-()]{7,20}$/.test(phone)) {
+        showMessage("Please enter a valid phone number.", "var(--err)");
+        return;
+      }
+      if (ACCESS_KEY.startsWith("PASTE_")) {
+        showMessage("Setup incomplete: add the Access Key in index.html.", "var(--err)");
+        return;
+      }
+
+      // Honeypot: bots fill this hidden field, so silently ignore them
+      if (form.website.value) {
+        showMessage("Submitted successfully. Thank you!", "var(--ok)");
+        return;
+      }
+
+      btn.disabled = true;
+      showMessage("Sending...", "var(--muted)");
+
+      try {
+        const response = await fetch("https://api.web3forms.com/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Accept": "application/json" },
+          body: JSON.stringify({
+            access_key: ACCESS_KEY,
+            subject: "New student registration: " + name,
+            from_name: "Student Registration Form",
+            name: name,
+            phone: phone,
+            email: email
+          })
+        });
+        const result = await response.json();
+
+        if (result.success) {
+          showMessage("Submitted successfully. Thank you!", "var(--ok)");
+          form.reset();
+        } else {
+          showMessage("Could not send. Please try again.", "var(--err)");
+        }
+      } catch (err) {
+        showMessage("Could not send. Check your connection and try again.", "var(--err)");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
